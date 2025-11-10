@@ -74,9 +74,10 @@ export default function NewsPage() {
       return <p>No recent news articles found.</p>;
     }
 
-    // --- Render grid layout ---
     return (
-      <div className="news-grid">
+      // Use Tailwind's responsive grid classes directly
+      // 1 column by default, 2 on medium, 3 on large
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {articles.map((article) => (
           <NewsArticleCard key={article.url} article={article} />
         ))}
@@ -86,12 +87,14 @@ export default function NewsPage() {
 
 return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold">Your News Feed</h1>
         <button
           onClick={loadNews}
           disabled={loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+          // --- ADDED w-full sm:w-auto ---
+          // Makes button full-width on mobile, auto-width on desktop
+          className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
         >
           {loading ? "Refreshing..." : "🔄 Refresh Feed"}
         </button>

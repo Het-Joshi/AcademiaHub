@@ -30,10 +30,10 @@ export default function RootLayout({
                   href="/"
                   className="text-2xl font-bold text-blue-600 hover:text-blue-700 transition-colors"
                 >
-                  🎓 AcademiaHub
+                  AcademiaHub
                 </Link>
 
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1 md:space-x-2">
                   {/* Pass the active state to NavLink */}
                   <NavLink href="/" label="Search" icon="🔍" />
                   <NavLink href="/for-you" label="For You" icon="✨" />
@@ -76,24 +76,25 @@ function NavLink({
   icon: string;
 }) {
   const pathname = usePathname();
-  // Check if the current path matches the href.
-  // This handles the root path "/" case correctly.
   const isActive =
     pathname === href || (pathname.startsWith(href) && href !== "/");
 
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors
+      className={`flex items-center gap-2 rounded-md transition-colors
         ${
           isActive
-            ? "font-bold text-blue-600 bg-blue-50" // Active link style
-            : "font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50" // Inactive link style
+            ? "font-bold text-blue-600 bg-blue-50"
+            : "font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50"
         }
+        p-2
+        md:px-4 md:py-2
       `}
     >
       <span>{icon}</span>
-      <span>{label}</span>
+      {/* --- CHANGE HERE: Hide the label on small screens --- */}
+      <span className="hidden md:inline">{label}</span>
     </Link>
   );
 }

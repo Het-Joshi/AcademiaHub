@@ -5,12 +5,18 @@ import Parser from "rss-parser";
 
 // --- DEFINE YOUR RSS FEEDS HERE ---
 const FEEDS = [
-  // ... (same as before)
+  { name: "WIRED", url: "https://www.wired.com/feed/rss" },
+  { name: "The Verge", url: "https://www.theverge.com/rss/index.xml" },
+  { name: "Engadget", url: "https://www.engadget.com/rss.xml" },
+  { name: "CNET", url: "https://www.cnet.com/rss/news/" },
+  { name: "Gizmodo", url: "https://gizmodo.com/rss" },
+
   { name: "TechCrunch", url: "https://techcrunch.com/feed/" },
+  { name: "Ars Technica", url: "https://arstechnica.com/feed/" },
+  { name: "Hacker News", url: "https://hnrss.org/frontpage" },
+  
   { name: "MIT News (ML)", url: "https://news.mit.edu/rss/topic/machine-learning" },
   { name: "ScienceDaily (AI)", url: "https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml" },
-  { name: "Hacker News", url: "https://hnrss.org/frontpage" },
-  { name: "Ars Technica", url: "https://arstechnica.com/feed/" },
   { name: "Synced (AI News)", url: "https://syncedreview.com/feed/" }
 ];
 

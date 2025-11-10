@@ -80,7 +80,7 @@ export default function SearchBar({ initialQuery = "" }: Props) {
     <div className="mb-8">
       <div className="bg-white p-4 rounded-lg shadow-md mb-4">
         {/* Main keyword search */}
-        <div className="flex gap-2 mb-3">
+        <div className="flex flex-col sm:flex-row gap-2 mb-3">
           <input
             type="text"
             value={query}
@@ -98,7 +98,7 @@ export default function SearchBar({ initialQuery = "" }: Props) {
         </div>
 
         {/* New Author Field (can be shown always or with filters) */}
-        <div className="flex gap-2 mb-3">
+        <div className="flex flex-col sm:flex-row gap-2 mb-3">
           <input
             type="text"
             value={author}
