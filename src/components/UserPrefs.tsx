@@ -51,7 +51,7 @@ export default function UserPrefsComponent({
     }
   };
 
-  const handleKeyPress = (
+  const handleKeyDown = (
     e: React.KeyboardEvent,
     action: () => void
   ) => {
@@ -80,7 +80,7 @@ export default function UserPrefsComponent({
             type="text"
             value={newInterest}
             onChange={(e) => setNewInterest(e.target.value)}
-            onKeyPress={(e) => handleKeyPress(e, handleAddInterest)}
+            onKeyDown={(e) => handleKeyDown(e, handleAddInterest)}
             placeholder="e.g., machine learning"
             className="search-input flex-1"
           />
@@ -128,7 +128,7 @@ export default function UserPrefsComponent({
             type="text"
             value={newAuthor}
             onChange={(e) => setNewAuthor(e.target.value)}
-            onKeyPress={(e) => handleKeyPress(e, handleAddAuthor)}
+            onKeyDown={(e) => handleKeyDown(e, handleAddAuthor)}
             placeholder="e.g., Devashish Gosain"
             className="search-input flex-1"
           />
