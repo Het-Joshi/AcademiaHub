@@ -53,7 +53,7 @@ export default function SearchBar({ initialQuery = "" }: Props) {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleSearch();
     }
@@ -85,8 +85,8 @@ export default function SearchBar({ initialQuery = "" }: Props) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Search by topic (e.g., network security) or title (ti:title)..."
+            onKeyDown={handleKeyDown}
+            placeholder="Search by topic (e.g., network security) or title ..."
             className="search-input"
           />
           <button
@@ -103,7 +103,7 @@ export default function SearchBar({ initialQuery = "" }: Props) {
             type="text"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Search by author (e.g., Devashish Gosain)"
             className="search-input"
           />
