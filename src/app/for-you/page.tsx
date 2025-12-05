@@ -7,169 +7,183 @@ import UserPrefsComponent from "@/components/UserPrefs";
 import { ArxivPaper, UserPrefs } from "@/types";
 import { useUserPrefs } from "@/context/UserPrefsContext";
 
-// Updated constants per user request
-const FETCH_BATCH_SIZE = 50; 
+// Config: Fetch more papers per specific interest to build a good pool
+const PER_CATEGORY_FETCH_LIMIT = 25; 
 const ITEMS_PER_PAGE = 10;
 
 type SortByType = "submittedDate" | "relevance" | "lastUpdatedDate";
 
 export default function ForYou() {
-  const [allPapers, setAllPapers] = useState<ArxivPaper[]>([]);
+  // Store the raw pool of fetched papers here
+  const [rawPapers, setRawPapers] = useState<ArxivPaper[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
+  // UI State
   const [sortBy, setSortBy] = useState<SortByType>("submittedDate");
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalResults, setTotalResults] = useState(0);
-
+  
+  // Context
   const { prefs, loading: prefsLoading } = useUserPrefs();
 
-  // --- Sorting Logic ---
-  // We prioritize followed authors when sorting by relevance
-  const processPapers = useCallback((papers: ArxivPaper[], userPrefs: UserPrefs, sortMode: SortByType) => {
-    let processed = [...papers];
-
-    if (sortMode === 'relevance') {
-       processed.sort((a, b) => {
-         const aIsFollowed = a.authors.some(auth => userPrefs.followedAuthors.includes(auth));
-         const bIsFollowed = b.authors.some(auth => userPrefs.followedAuthors.includes(auth));
-         
-         // 1. Followed authors first
-         if (aIsFollowed && !bIsFollowed) return -1;
-         if (!aIsFollowed && bIsFollowed) return 1;
-         
-         // 2. Then by date (newer first) as a tie-breaker
-         return new Date(b.published).getTime() - new Date(a.published).getTime();
-       });
-    } else if (sortMode === 'submittedDate' || sortMode === 'lastUpdatedDate') {
-       processed.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
-    }
-
-    return processed;
-  }, []);
-
-  // --- Main data fetching function ---
-  const handlePrefsUpdate = useCallback(async (updatedPrefs: UserPrefs) => {
-    // Reset to page 1 on new fetch
-    setCurrentPage(1); 
-    
+  // --- 1. Data Fetching Logic ---
+  // We fetch specific batches for each interest/author to guarantee representation
+  const fetchPersonalizedFeed = useCallback(async (currentPrefs: UserPrefs) => {
     if (
-      updatedPrefs.interests.length === 0 &&
-      updatedPrefs.followedAuthors.length === 0
+      currentPrefs.interests.length === 0 &&
+      currentPrefs.followedAuthors.length === 0
     ) {
-      setAllPapers([]);
-      setTotalResults(0);
+      setRawPapers([]);
       setLastUpdated(null);
       return;
     }
 
     setLoading(true);
     setError(null);
+    setCurrentPage(1);
 
     try {
-      const queryParts: string[] = [];
+      // We will collect promises for all fetches
+      const fetchPromises: Promise<{ papers: ArxivPaper[] } | null>[] = [];
 
-      // Construct a broader query to get enough candidates for our custom sort
-      if (updatedPrefs.interests.length > 0) {
-        const interestQuery = updatedPrefs.interests
-          .map((interest) => `all:"${interest}"`)
-          .join(" OR ");
-        queryParts.push(`(${interestQuery})`);
-      }
+      // A. Fetch for Each Followed Author (High Priority)
+      // We ask for 'submittedDate' (newest) to ensure we get their latest work
+      currentPrefs.followedAuthors.forEach(author => {
+        fetchPromises.push(
+          searchArxiv(`au:"${author}"`, PER_CATEGORY_FETCH_LIMIT, 0, 'submittedDate')
+            .catch(err => {
+              console.warn(`Failed to fetch for author: ${author}`, err);
+              return null;
+            })
+        );
+      });
 
-      if (updatedPrefs.followedAuthors.length > 0) {
-        const authorQuery = updatedPrefs.followedAuthors
-          .map((author) => `au:"${author}"`)
-          .join(" OR ");
-        queryParts.push(`(${authorQuery})`);
-      }
+      // B. Fetch for Each Interest
+      currentPrefs.interests.forEach(interest => {
+        fetchPromises.push(
+          searchArxiv(`all:"${interest}"`, PER_CATEGORY_FETCH_LIMIT, 0, 'submittedDate')
+            .catch(err => {
+              console.warn(`Failed to fetch for interest: ${interest}`, err);
+              return null;
+            })
+        );
+      });
 
-      const fullQuery = queryParts.join(" OR ");
+      // C. Execute all requests in parallel
+      const results = await Promise.all(fetchPromises);
 
-      // Fetch a larger batch (50) to allow for effective client-side sorting/pagination
-      let { papers: results, totalResults: total } = await searchArxiv(
-        fullQuery,
-        FETCH_BATCH_SIZE, 
-        0, // Start at 0, we paginate the batch locally
-        sortBy // Pass sort to API too, though we refine locally
-      );
+      // D. De-duplicate and Merge
+      const uniquePapers = new Map<string, ArxivPaper>();
+      
+      results.forEach(result => {
+        if (result && result.papers) {
+          result.papers.forEach(p => {
+            // Use ID as key to prevent duplicates
+            if (!uniquePapers.has(p.id)) {
+              uniquePapers.set(p.id, p);
+            }
+          });
+        }
+      });
 
-      // Filter out excluded categories
-      if (updatedPrefs.excludedCategories && updatedPrefs.excludedCategories.length > 0) {
-        results = results.filter(
-          (paper) =>
-            !paper.categories.some((cat) =>
-              updatedPrefs.excludedCategories?.includes(cat)
-            )
+      let pool = Array.from(uniquePapers.values());
+
+      // E. Filter Excluded Categories
+      if (currentPrefs.excludedCategories && currentPrefs.excludedCategories.length > 0) {
+        pool = pool.filter(paper => 
+          !paper.categories.some(cat => currentPrefs.excludedCategories?.includes(cat))
         );
       }
-      
-      // Apply Custom Sort (Author Priority)
-      const sortedResults = processPapers(results, updatedPrefs, sortBy);
 
-      setAllPapers(sortedResults);
-      // Fix "0 recommended papers": ensure total is at least what we fetched
-      setTotalResults(Math.max(total, sortedResults.length));
+      setRawPapers(pool);
       setLastUpdated(new Date());
+      localStorage.setItem("scholarly_papers_cache", JSON.stringify(pool));
 
-      // Cache for other pages
-      localStorage.setItem("scholarly_papers_cache", JSON.stringify(sortedResults));
-
-      if (sortedResults.length === 0) {
-        setError("No papers found matching your preferences. Try adding more interests or authors.");
+      if (pool.length === 0) {
+        setError("No papers found. Try adding different interests or authors.");
       }
+
     } catch (err) {
-      setError("Failed to fetch papers. Please check your connection and try again.");
+      setError("Failed to generate feed. Please try again.");
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [sortBy, processPapers]);
+  }, []); // Stable dependency
 
-  // Wrap the updater to prevent loops
-  const debouncedPrefsUpdate = useCallback((newPrefs: UserPrefs) => {
-    handlePrefsUpdate(newPrefs);
-  }, [handlePrefsUpdate]);
-  
-  // Initial Load
-  useEffect(() => {
-    if (!prefsLoading && (prefs.interests.length > 0 || prefs.followedAuthors.length > 0)) {
-      handlePrefsUpdate(prefs);
+  // --- 2. Sorting Logic (Client-Side) ---
+  const sortedPapers = useMemo(() => {
+    let processed = [...rawPapers];
+
+    if (sortBy === 'relevance') {
+       // Custom Relevance: Followed Authors -> Newest
+       processed.sort((a, b) => {
+         const aIsFollowed = a.authors.some(auth => prefs.followedAuthors.includes(auth));
+         const bIsFollowed = b.authors.some(auth => prefs.followedAuthors.includes(auth));
+         
+         // Priority 1: Followed Authors
+         if (aIsFollowed && !bIsFollowed) return -1;
+         if (!aIsFollowed && bIsFollowed) return 1;
+         
+         // Priority 2: Publish Date
+         return new Date(b.published).getTime() - new Date(a.published).getTime();
+       });
+    } else {
+       // Standard Date Sorts
+       processed.sort((a, b) => {
+         const dateA = new Date(sortBy === 'lastUpdatedDate' ? a.updated || a.published : a.published);
+         const dateB = new Date(sortBy === 'lastUpdatedDate' ? b.updated || b.published : b.published);
+         return dateB.getTime() - dateA.getTime();
+       });
     }
-  }, [prefsLoading, sortBy]); // Removed 'prefs' dependency to avoid loop, relies on explicit user action or initial load
 
-  // Re-sort if sort option changes (without re-fetching if possible, but for now we re-fetch to be safe with API sort)
-  // Actually, we can just re-sort locally if we have papers, but `handlePrefsUpdate` fetches. 
-  // Given the dependency above, it will re-fetch.
+    return processed;
+  }, [rawPapers, sortBy, prefs.followedAuthors]);
 
-  const refreshFeed = useCallback(() => {
-    handlePrefsUpdate(prefs);
-  }, [prefs, handlePrefsUpdate]);
-  
-  // --- Client-Side Pagination Logic ---
-  const totalPages = Math.ceil(allPapers.length / ITEMS_PER_PAGE);
+  // --- 3. Pagination Logic ---
+  const totalPages = Math.ceil(sortedPapers.length / ITEMS_PER_PAGE);
   const visiblePapers = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return allPapers.slice(start, start + ITEMS_PER_PAGE);
-  }, [allPapers, currentPage]);
+    return sortedPapers.slice(start, start + ITEMS_PER_PAGE);
+  }, [sortedPapers, currentPage]);
+
+  // --- 4. Effects ---
+  
+  // Initial Fetch & Prefs Change
+  const debouncedPrefsUpdate = useCallback((newPrefs: UserPrefs) => {
+    fetchPersonalizedFeed(newPrefs);
+  }, [fetchPersonalizedFeed]);
+
+  // Trigger fetch on mount or when prefs finish loading (if we have data)
+  useEffect(() => {
+    if (!prefsLoading && (prefs.interests.length > 0 || prefs.followedAuthors.length > 0)) {
+        // Simple check to avoid double-fetching if we already have data in memory 
+        // (Optional: remove rawPapers.length check if you want live updates on every nav)
+        if (rawPapers.length === 0) {
+            fetchPersonalizedFeed(prefs);
+        }
+    }
+  }, [prefsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshFeed = () => fetchPersonalizedFeed(prefs);
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-black mb-2">For You</h1>
           <p className="text-black">
-            Personalized feed based on your interests and followed authors
+            Aggregating papers from your {prefs.followedAuthors.length} authors and {prefs.interests.length} topics.
           </p>
         </div>
-        {allPapers.length > 0 && ( 
+        {(rawPapers.length > 0 || loading) && ( 
           <button
             onClick={refreshFeed}
             disabled={loading || prefsLoading}
-            className="px-4 py-2 bg-stone-200 text-stone-800 rounded-md hover:bg-stone-300 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-stone-200 text-stone-800 rounded-md hover:bg-stone-300 disabled:opacity-50 transition-colors whitespace-nowrap"
           >
-            {loading ? "Refreshing..." : "🔄 Refresh Feed"}
+            {loading ? "Fetching..." : "🔄 Refresh Feed"}
           </button>
         )}
       </div>
@@ -178,6 +192,7 @@ export default function ForYou() {
         {/* Sidebar */}
         <div className="md:w-1/3 lg:w-80 xl:w-96">
           <div className="sticky top-24">
+            {/* Pass the debounced updater */}
             <UserPrefsComponent onUpdate={debouncedPrefsUpdate} />
           </div>
         </div>
@@ -190,46 +205,50 @@ export default function ForYou() {
             </div>
           )}
 
-          {loading || (prefsLoading && allPapers.length === 0) ? ( 
+          {loading ? ( 
             <div className="flex justify-center items-center min-h-[300px]">
               <div className="text-center">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mb-4"></div>
-                <p className="text-gray-600">Loading your personalized feed...</p>
+                <p className="text-gray-600">Curating your personalized feed...</p>
+                <p className="text-xs text-gray-400 mt-2">Fetching papers from arXiv...</p>
               </div>
             </div>
           ) : (
             <div>
-              {allPapers.length > 0 ? (
+              {sortedPapers.length > 0 ? (
                 <>
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                     <h2 className="text-xl font-semibold text-black">
-                      {totalResults} Recommended Paper{totalResults !== 1 ? "s" : ""}
+                      {sortedPapers.length} Recommended Papers
                     </h2>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as SortByType)}
-                      className="glass-input !w-auto text-sm cursor-pointer"
-                      disabled={loading}
-                    >
-                      <option value="submittedDate">Sort by Newest</option>
-                      <option value="relevance">Sort by Author Relevance</option>
-                      <option value="lastUpdatedDate">Sort by Last Updated</option>
-                    </select>
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-600">Sort by:</label>
+                        <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as SortByType)}
+                        className="glass-input !w-auto text-sm cursor-pointer py-1"
+                        >
+                        <option value="submittedDate">Newest</option>
+                        <option value="relevance">Author Relevance</option>
+                        <option value="lastUpdatedDate">Last Updated</option>
+                        </select>
+                    </div>
                   </div>
                   
                   {lastUpdated && (
-                    <div className="text-xs text-gray-500 mb-4 font-mono">
-                      Last updated: {lastUpdated.toLocaleTimeString()}
+                    <div className="text-xs text-gray-500 mb-4 font-mono text-right">
+                      Updated: {lastUpdated.toLocaleTimeString()}
                     </div>
                   )}
                   
-                  {/* Render visible slice */}
-                  {visiblePapers.map((paper) => (
-                    <PaperCard key={paper.id} paper={paper} />
-                  ))}
+                  <div className="space-y-4">
+                    {visiblePapers.map((paper) => (
+                        <PaperCard key={paper.id} paper={paper} />
+                    ))}
+                  </div>
 
                   {/* Pagination Controls */}
-                  {allPapers.length > ITEMS_PER_PAGE && (
+                  {sortedPapers.length > ITEMS_PER_PAGE && (
                     <div className="flex justify-center items-center gap-4 mt-8 pb-8">
                       <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -252,15 +271,14 @@ export default function ForYou() {
                   )}
                 </>
               ) : (
-                !loading &&
                 !error && ( 
                   <div className="glass-card p-12 text-center">
                     <div className="text-6xl mb-4">🎯</div>
                     <h2 className="text-xl font-semibold text-gray-700 mb-2">
-                      Customize Your Feed
+                      Start Your Research Journey
                     </h2>
-                    <p className="text-gray-600">
-                      Add research interests or follow authors to see recommendations.
+                    <p className="text-gray-600 max-w-md mx-auto">
+                      Add research interests (e.g., "Machine Learning") or follow specific authors in the sidebar to populate your feed.
                     </p>
                   </div>
                 )
