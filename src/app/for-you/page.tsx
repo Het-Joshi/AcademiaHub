@@ -1,18 +1,20 @@
 /* eslint-disable prefer-const */
 "use client";
-// Import useCallback
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { searchArxiv } from "@/lib/arxiv";
 import PaperCard from "@/components/PaperCard";
 import UserPrefsComponent from "@/components/UserPrefs";
 import { ArxivPaper, UserPrefs } from "@/types";
 import { useUserPrefs } from "@/context/UserPrefsContext";
 
-const PAGE_SIZE = 10;
+// Updated constants per user request
+const FETCH_BATCH_SIZE = 50; 
+const ITEMS_PER_PAGE = 10;
+
 type SortByType = "submittedDate" | "relevance" | "lastUpdatedDate";
 
 export default function ForYou() {
-  const [papers, setPapers] = useState<ArxivPaper[]>([]);
+  const [allPapers, setAllPapers] = useState<ArxivPaper[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -23,15 +25,40 @@ export default function ForYou() {
 
   const { prefs, loading: prefsLoading } = useUserPrefs();
 
+  // --- Sorting Logic ---
+  // We prioritize followed authors when sorting by relevance
+  const processPapers = useCallback((papers: ArxivPaper[], userPrefs: UserPrefs, sortMode: SortByType) => {
+    let processed = [...papers];
+
+    if (sortMode === 'relevance') {
+       processed.sort((a, b) => {
+         const aIsFollowed = a.authors.some(auth => userPrefs.followedAuthors.includes(auth));
+         const bIsFollowed = b.authors.some(auth => userPrefs.followedAuthors.includes(auth));
+         
+         // 1. Followed authors first
+         if (aIsFollowed && !bIsFollowed) return -1;
+         if (!aIsFollowed && bIsFollowed) return 1;
+         
+         // 2. Then by date (newer first) as a tie-breaker
+         return new Date(b.published).getTime() - new Date(a.published).getTime();
+       });
+    } else if (sortMode === 'submittedDate' || sortMode === 'lastUpdatedDate') {
+       processed.sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
+    }
+
+    return processed;
+  }, []);
+
   // --- Main data fetching function ---
-  const handlePrefsUpdate = useCallback(async (updatedPrefs: UserPrefs, page: number = 1) => {
-    setCurrentPage(page);
+  const handlePrefsUpdate = useCallback(async (updatedPrefs: UserPrefs) => {
+    // Reset to page 1 on new fetch
+    setCurrentPage(1); 
     
     if (
       updatedPrefs.interests.length === 0 &&
       updatedPrefs.followedAuthors.length === 0
     ) {
-      setPapers([]);
+      setAllPapers([]);
       setTotalResults(0);
       setLastUpdated(null);
       return;
@@ -43,6 +70,7 @@ export default function ForYou() {
     try {
       const queryParts: string[] = [];
 
+      // Construct a broader query to get enough candidates for our custom sort
       if (updatedPrefs.interests.length > 0) {
         const interestQuery = updatedPrefs.interests
           .map((interest) => `all:"${interest}"`)
@@ -58,13 +86,13 @@ export default function ForYou() {
       }
 
       const fullQuery = queryParts.join(" OR ");
-      const startIndex = (page - 1) * PAGE_SIZE;
 
+      // Fetch a larger batch (50) to allow for effective client-side sorting/pagination
       let { papers: results, totalResults: total } = await searchArxiv(
         fullQuery,
-        PAGE_SIZE,
-        startIndex,
-        sortBy
+        FETCH_BATCH_SIZE, 
+        0, // Start at 0, we paginate the batch locally
+        sortBy // Pass sort to API too, though we refine locally
       );
 
       // Filter out excluded categories
@@ -77,65 +105,54 @@ export default function ForYou() {
         );
       }
       
-      if (sortBy === 'submittedDate' || sortBy === 'lastUpdatedDate') {
-         results.sort(
-          (a, b) =>
-            new Date(b.published).getTime() - new Date(a.published).getTime()
-        );
-      }
+      // Apply Custom Sort (Author Priority)
+      const sortedResults = processPapers(results, updatedPrefs, sortBy);
 
-      setPapers(results);
-      setTotalResults(total);
+      setAllPapers(sortedResults);
+      // Fix "0 recommended papers": ensure total is at least what we fetched
+      setTotalResults(Math.max(total, sortedResults.length));
       setLastUpdated(new Date());
 
-      localStorage.setItem("scholarly_papers_cache", JSON.stringify(results));
+      // Cache for other pages
+      localStorage.setItem("scholarly_papers_cache", JSON.stringify(sortedResults));
 
-      if (results.length === 0) {
-        setError(
-          "No papers found matching your preferences. Try adding more interests or authors."
-        );
+      if (sortedResults.length === 0) {
+        setError("No papers found matching your preferences. Try adding more interests or authors.");
       }
     } catch (err) {
-      setError(
-        "Failed to fetch papers. Please check your connection and try again."
-      );
+      setError("Failed to fetch papers. Please check your connection and try again.");
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [sortBy]); // <-- This dependency is correct
+  }, [sortBy, processPapers]);
 
-  // --- THIS IS THE FIX ---
-  // Wrap the debounced updater in useCallback.
-  // This creates a stable function that won't change on every re-render,
-  // preventing the UserPrefsComponent's useEffect from looping.
+  // Wrap the updater to prevent loops
   const debouncedPrefsUpdate = useCallback((newPrefs: UserPrefs) => {
-    handlePrefsUpdate(newPrefs, 1); // Reset to page 1
-  }, [handlePrefsUpdate]); // <-- Now depends on the stable handlePrefsUpdate
+    handlePrefsUpdate(newPrefs);
+  }, [handlePrefsUpdate]);
   
-  // --- Effect to re-fetch when page changes ---
-  // This hook is fine, but it has a stale closure on 'prefs'.
-  // It's not the cause of the *infinite loop*, but it could be buggy.
-  // The fix above solves the loop.
+  // Initial Load
   useEffect(() => {
     if (!prefsLoading && (prefs.interests.length > 0 || prefs.followedAuthors.length > 0)) {
-      handlePrefsUpdate(prefs, currentPage);
+      handlePrefsUpdate(prefs);
     }
-  }, [currentPage, prefsLoading]); // Note: 'prefs' and 'handlePrefsUpdate' are stale here
-  
-  // --- Effect to re-fetch when sort changes ---
-  // This hook also has a stale 'prefs' closure.
-  useEffect(() => {
-    if (!prefsLoading) {
-      handlePrefsUpdate(prefs, 1); // Reset to page 1
-    }
-  }, [sortBy, prefsLoading]); // Note: 'prefs' and 'handlePrefsUpdate' are stale here
+  }, [prefsLoading, sortBy]); // Removed 'prefs' dependency to avoid loop, relies on explicit user action or initial load
+
+  // Re-sort if sort option changes (without re-fetching if possible, but for now we re-fetch to be safe with API sort)
+  // Actually, we can just re-sort locally if we have papers, but `handlePrefsUpdate` fetches. 
+  // Given the dependency above, it will re-fetch.
 
   const refreshFeed = useCallback(() => {
-    handlePrefsUpdate(prefs, 1);
+    handlePrefsUpdate(prefs);
   }, [prefs, handlePrefsUpdate]);
   
-  const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+  // --- Client-Side Pagination Logic ---
+  const totalPages = Math.ceil(allPapers.length / ITEMS_PER_PAGE);
+  const visiblePapers = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return allPapers.slice(start, start + ITEMS_PER_PAGE);
+  }, [allPapers, currentPage]);
 
   return (
     <div>
@@ -146,11 +163,11 @@ export default function ForYou() {
             Personalized feed based on your interests and followed authors
           </p>
         </div>
-        {papers.length > 0 && ( 
+        {allPapers.length > 0 && ( 
           <button
             onClick={refreshFeed}
             disabled={loading || prefsLoading}
-            className="px-4 py-2 bg-dark text-black rounded-md hover:bg-light disabled:bg-gray-400 transition-colors"
+            className="px-4 py-2 bg-stone-200 text-stone-800 rounded-md hover:bg-stone-300 disabled:opacity-50 transition-colors"
           >
             {loading ? "Refreshing..." : "🔄 Refresh Feed"}
           </button>
@@ -161,7 +178,6 @@ export default function ForYou() {
         {/* Sidebar */}
         <div className="md:w-1/3 lg:w-80 xl:w-96">
           <div className="sticky top-24">
-            {/* --- Pass the new STABLE debounced updater --- */}
             <UserPrefsComponent onUpdate={debouncedPrefsUpdate} />
           </div>
         </div>
@@ -174,16 +190,16 @@ export default function ForYou() {
             </div>
           )}
 
-          {loading || (prefsLoading && papers.length === 0) ? ( 
+          {loading || (prefsLoading && allPapers.length === 0) ? ( 
             <div className="flex justify-center items-center min-h-[300px]">
               <div className="text-center">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mb-4"></div>
                 <p className="text-gray-600">Loading your personalized feed...</p>
               </div>
             </div>
           ) : (
             <div>
-              {papers.length > 0 ? (
+              {allPapers.length > 0 ? (
                 <>
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-semibold text-black">
@@ -192,41 +208,43 @@ export default function ForYou() {
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value as SortByType)}
-                      className="search-input !w-auto text-sm"
+                      className="glass-input !w-auto text-sm cursor-pointer"
                       disabled={loading}
                     >
                       <option value="submittedDate">Sort by Newest</option>
-                      <option value="relevance">Sort by Relevance</option>
+                      <option value="relevance">Sort by Author Relevance</option>
                       <option value="lastUpdatedDate">Sort by Last Updated</option>
                     </select>
                   </div>
                   
                   {lastUpdated && (
-                    <div className="text-sm text-gray-500 mb-4">
-                      Last updated: {lastUpdated.toLocaleString()}
+                    <div className="text-xs text-gray-500 mb-4 font-mono">
+                      Last updated: {lastUpdated.toLocaleTimeString()}
                     </div>
                   )}
                   
-                  {papers.map((paper) => (
+                  {/* Render visible slice */}
+                  {visiblePapers.map((paper) => (
                     <PaperCard key={paper.id} paper={paper} />
                   ))}
 
-                  {totalResults > PAGE_SIZE && (
-                    <div className="flex justify-between items-center mt-8">
+                  {/* Pagination Controls */}
+                  {allPapers.length > ITEMS_PER_PAGE && (
+                    <div className="flex justify-center items-center gap-4 mt-8 pb-8">
                       <button
-                        onClick={() => setCurrentPage(p => p - 1)}
-                        disabled={currentPage === 1 || loading}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 glass-card text-sm font-medium hover:bg-white/60 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         ← Previous
                       </button>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm font-medium text-stone-600">
                         Page {currentPage} of {totalPages}
                       </span>
                       <button
-                        onClick={() => setCurrentPage(p => p + 1)}
-                        disabled={currentPage * PAGE_SIZE >= totalResults || loading}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-4 py-2 glass-card text-sm font-medium hover:bg-white/60 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Next →
                       </button>
@@ -242,8 +260,7 @@ export default function ForYou() {
                       Customize Your Feed
                     </h2>
                     <p className="text-gray-600">
-                      Add research interests or follow authors above to see
-                      personalized paper recommendations
+                      Add research interests or follow authors to see recommendations.
                     </p>
                   </div>
                 )

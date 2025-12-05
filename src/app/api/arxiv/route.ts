@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { parseStringPromise } from "xml2js";
 import { ArxivPaper } from "@/types";
@@ -19,11 +20,18 @@ function extractText(obj: any): string {
 // This function parses the XML response from arXiv
 async function parseArxivResponse(xml: string): Promise<{ papers: ArxivPaper[], totalResults: number }> {
   const parsed = await parseStringPromise(xml);
+  let totalResults = parseInt(
+    parsed.feed?.["opensearch:totalResults"]?.[0]?._ || 
+    parsed.feed?.["opensearch:totalResults"]?.[0] || 
+    "0"
+  );
+
+  if (!parsed.feed || !parsed.feed.entry) {
+    return { papers: [], totalResults: 0 };
+  }
   
   // Get total results for pagination
-  const totalResults = parseInt(
-    parsed.feed["opensearch:totalResults"]?.[0]?._ || "0"
-  );
+  
 
   if (!parsed.feed || !parsed.feed.entry) {
     return { papers: [], totalResults: 0 };
@@ -50,6 +58,9 @@ async function parseArxivResponse(xml: string): Promise<{ papers: ArxivPaper[], 
     const links = Array.isArray(entry.link) ? entry.link : [entry.link];
     const pdfLink = links.find((l: any) => l.$.title === "pdf");
 
+    if (totalResults === 0 && papers.length > 0) {
+      totalResults = papers.length;
+    }
     return {
       id: extractText(entry.id),
       title: extractText(entry.title).replace(/\s+/g, " ").trim(),
