@@ -8,7 +8,7 @@ import { ArxivPaper, UserPrefs } from "@/types";
 import { useUserPrefs } from "@/context/UserPrefsContext";
 
 // Config: Fetch more papers per specific interest to build a good pool
-const PER_CATEGORY_FETCH_LIMIT = 25; 
+const PER_CATEGORY_FETCH_LIMIT = 50; 
 const ITEMS_PER_PAGE = 10;
 
 type SortByType = "submittedDate" | "relevance" | "lastUpdatedDate";
@@ -62,7 +62,7 @@ export default function ForYou() {
       // B. Fetch for Each Interest
       currentPrefs.interests.forEach(interest => {
         fetchPromises.push(
-          searchArxiv(`all:"${interest}"`, PER_CATEGORY_FETCH_LIMIT, 0, 'submittedDate')
+          searchArxiv(`all:"${interest}"`, PER_CATEGORY_FETCH_LIMIT+50, 0, 'submittedDate')
             .catch(err => {
               console.warn(`Failed to fetch for interest: ${interest}`, err);
               return null;
