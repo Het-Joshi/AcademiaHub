@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 "use client";
 // Import useCallback
 import { useState, useEffect, useCallback } from "react";
@@ -140,8 +141,8 @@ export default function ForYou() {
     <div>
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">For You</h1>
-          <p className="text-gray-600">
+          <h1 className="text-3xl font-bold text-black mb-2">For You</h1>
+          <p className="text-black">
             Personalized feed based on your interests and followed authors
           </p>
         </div>
@@ -149,7 +150,7 @@ export default function ForYou() {
           <button
             onClick={refreshFeed}
             disabled={loading || prefsLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+            className="px-4 py-2 bg-dark text-black rounded-md hover:bg-light disabled:bg-gray-400 transition-colors"
           >
             {loading ? "Refreshing..." : "🔄 Refresh Feed"}
           </button>
@@ -185,7 +186,7 @@ export default function ForYou() {
               {papers.length > 0 ? (
                 <>
                   <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-gray-800">
+                    <h2 className="text-xl font-semibold text-black">
                       {totalResults} Recommended Paper{totalResults !== 1 ? "s" : ""}
                     </h2>
                     <select
@@ -235,7 +236,7 @@ export default function ForYou() {
               ) : (
                 !loading &&
                 !error && ( 
-                  <div className="bg-white p-12 rounded-lg shadow-md text-center">
+                  <div className="glass-card p-12 text-center">
                     <div className="text-6xl mb-4">🎯</div>
                     <h2 className="text-xl font-semibold text-gray-700 mb-2">
                       Customize Your Feed

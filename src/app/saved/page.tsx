@@ -1,3 +1,5 @@
+/* eslint-disable @next/next/no-html-link-for-pages */
+/* eslint-disable prefer-const */
 "use client";
 import { useState, useEffect } from "react";
 import { ArxivPaper } from "@/types";
@@ -84,7 +86,7 @@ export default function SavedPapers() {
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Saved Papers</h1>
+        <h1 className="text-3xl font-bold text-black">Saved Papers</h1>
         {savedPapers.length > 0 && (
           <button
             onClick={clearAll}
@@ -98,7 +100,7 @@ export default function SavedPapers() {
       {savedPapers.length === 0 ? (
         <div className="bg-white p-12 rounded-lg shadow-md text-center">
           <div className="text-6xl mb-4">📚</div>
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">
+          <h2 className="text-xl font-semibold text-black mb-2">
             No saved papers yet
           </h2>
           <p className="text-gray-600 mb-6">
@@ -106,14 +108,14 @@ export default function SavedPapers() {
           </p>
           <a
             href="/"
-            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            className="inline-block px-6 py-3 bg-blue-600 text-black rounded-md hover:bg-blue-700 transition-colors"
           >
             Search Papers
           </a>
         </div>
       ) : (
         <div>
-          <p className="text-gray-600 mb-4">
+          <p className="text-black mb-4">
             You have {savedPapers.length} saved paper{savedPapers.length !== 1 ? "s" : ""}
           </p>
           {/*

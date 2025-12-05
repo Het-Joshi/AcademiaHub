@@ -95,6 +95,7 @@ export async function advancedSearch(params: {
   categories?: string[];
   title?: string;
   maxResults?: number;
+  sortBy?: 'submittedDate' | 'relevance' | 'lastUpdatedDate';
 }): Promise<ArxivPaper[]> {
   const queryParts: string[] = [];
 
@@ -114,7 +115,12 @@ export async function advancedSearch(params: {
   }
 
   const fullQuery = queryParts.join(" AND ");
-  const { papers } = await searchArxiv(fullQuery, params.maxResults || 20);
+  const { papers } = await searchArxiv(
+    fullQuery, 
+    params.maxResults || 50, 
+    0, 
+    params.sortBy || 'submittedDate' 
+  );
   return papers;
 }
 

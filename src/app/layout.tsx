@@ -2,7 +2,9 @@
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
+import { UserPrefsProvider } from "@/context/UserPrefsContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
+import ZenKnowledgeBackground from "@/components/ZenBackground";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserPrefsProvider } from "@/context/UserPrefsContext";
@@ -68,21 +70,15 @@ function NavLink({
   icon: string;
 }) {
   const pathname = usePathname();
-  const isActive =
-    pathname === href || (pathname.startsWith(href) && href !== "/");
-
+  const isActive = pathname === href || (pathname.startsWith(href) && href !== "/");
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2 rounded-md transition-colors
-        ${
-          isActive
-            ? "font-bold text-blue-600 bg-blue-50"
-            : "font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50"
-        }
-        p-2
-        md:px-4 md:py-2
-      `}
+      className={`flex items-center gap-2 rounded-md transition-all duration-200
+        ${isActive 
+            ? "font-bold text-emerald-800 bg-emerald-100/50 shadow-sm" 
+            : "font-medium text-stone-600 hover:text-emerald-700 hover:bg-emerald-50/50"}
+        p-2 md:px-4 md:py-2`}
     >
       <span>{icon}</span>
       {/* Hide label on mobile, show on desktop */}

@@ -1,147 +1,84 @@
 "use client";
 import { ArxivPaper } from "@/types";
 import { useState } from "react";
-import { useUserPrefs } from "@/context/UserPrefsContext"; // Import the hook
+import { useUserPrefs } from "@/context/UserPrefsContext";
 
 interface Props {
   paper: ArxivPaper;
-
 }
 
 export default function PaperCard({ paper }: Props) {
   const [expanded, setExpanded] = useState(false);
-  
-  // Get what we need from the context
   const { isPaperSaved, toggleSavePaper } = useUserPrefs();
-  
-  // The card's saved state is now derived directly from the global context
   const saved = isPaperSaved(paper.id);
 
-  const handleSave = () => {
-    // Just call the context updater. That's it!
-    toggleSavePaper(paper.id);
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { 
-      year: "numeric", 
-      month: "short", 
-      day: "numeric" 
-    });
-  };
-
-  const getArxivId = (fullId: string) => {
-    // Extract arxiv ID from full URL
-    const match = fullId.match(/(\d+\.\d+)/);
-    return match ? match[1] : fullId;
-  };
+  // Extract ID clean logic...
+  const getArxivId = (fullId: string) => fullId.replace(/^(https?:\/\/)?(www\.)?arxiv\.org\/abs\//, "").split('v')[0];
+  const cleanId = getArxivId(paper.id);
 
   return (
-  <div className="paper-card hover:shadow-lg transition-shadow">
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="text-lg font-semibold text-gray-900 flex-1 pr-4">
+    <div className="glass-card mb-4 group border-l-4 border-l-transparent hover:border-l-emerald-400">
+      <div className="flex justify-between items-start mb-3">
+        {/* Title: Dark Emerald/Black */}
+        <h3 className="text-xl font-bold text-stone-800 leading-tight flex-1 pr-4 group-hover:text-emerald-700 transition-colors">
           {paper.title}
         </h3>
         <button
-          onClick={handleSave}
-          className={`flex-shrink-0 px-3 py-1 rounded text-sm ${
+          onClick={() => toggleSavePaper(paper.id)}
+          className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider transition-all border ${
             saved
-              ? "bg-blue-100 text-blue-700"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              ? "bg-amber-100 text-amber-700 border-amber-300"
+              : "bg-white/50 text-stone-500 border-stone-200 hover:bg-white hover:text-stone-700"
           }`}
-          aria-label={saved ? "Unsave paper" : "Save paper"}
         >
-          {saved ? "★ Saved" : "☆ Save"}
+          {saved ? "★ Saved" : "Save"}
         </button>
       </div>
 
-      <div className="text-sm text-gray-600 mb-2">
-        <span className="font-medium">Authors:</span>{" "}
-        {paper.authors.length > 3 ? (
-          <>
-            {paper.authors.slice(0, 3).join(", ")}
-            <span className="text-gray-500"> (+{paper.authors.length - 3} more)</span>
-          </>
-        ) : (
-          paper.authors.join(", ")
-        )}
+      <div className="text-sm text-emerald-700/80 mb-3 font-medium">
+        {paper.authors.slice(0, 3).join(", ")}
+        {paper.authors.length > 3 && <span className="opacity-60"> +{paper.authors.length - 3} more</span>}
       </div>
 
-      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-        <span>📅 {formatDate(paper.published)}</span>
+      <div className="flex items-center gap-3 text-xs text-stone-500 mb-4 font-mono">
+        <span className="bg-stone-100 border border-stone-200 px-2 py-1 rounded">
+            {paper.published.substring(0, 10)}
+        </span>
         {paper.primaryCategory && (
-          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+          <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded border border-emerald-200">
             {paper.primaryCategory}
           </span>
         )}
-        <span className="text-xs text-gray-400">
-          ID: {getArxivId(paper.id)}
-        </span>
       </div>
 
-      <div className="mb-4">
-        <p className={`text-sm text-gray-700 ${expanded ? "" : "line-clamp-3"}`}>
+      <div className="mb-5">
+        {/* Summary: Dark Gray */}
+        <p className={`text-sm text-stone-600 leading-relaxed ${expanded ? "" : "line-clamp-3"}`}>
           {paper.summary}
         </p>
-        {paper.summary.length > 200 && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-sm text-blue-600 hover:text-blue-800 mt-1"
-          >
-            {expanded ? "Show less" : "Show more"}
-          </button>
-        )}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-emerald-600 hover:text-emerald-800 mt-2 font-medium uppercase tracking-wide hover:underline"
+        >
+          {expanded ? "Show less" : "Read abstract"}
+        </button>
       </div>
 
-      {paper.comment && (
-        <div className="text-xs text-gray-500 mb-3 italic">
-          Note: {paper.comment}
-        </div>
-      )}
-
-      {paper.journalRef && (
-        <div className="text-xs text-gray-500 mb-3">
-          <span className="font-medium">Published in:</span> {paper.journalRef}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-3 items-center">
-        {paper.pdfUrl && (
-          <a
-            href={paper.pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded transition-colors"
-          >
-            📄 View PDF
-          </a>
-        )}
+      <div className="flex gap-3 pt-4 border-t border-stone-200/50">
         <a
-          href={`https://arxiv.org/abs/${getArxivId(paper.id)}`}
+          href={`/details/${cleanId}`}
+          className="flex-1 text-center btn-primary py-2 text-sm shadow-md shadow-emerald-900/10"
+        >
+          Analysis & Discussion
+        </a>
+        <a
+          href={paper.pdfUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+          className="px-4 py-2 text-sm font-medium text-stone-600 bg-white/50 hover:bg-white border border-stone-200 rounded-lg transition-colors"
         >
-          View on arXiv →
+          PDF
         </a>
-        {paper.categories.length > 1 && (
-          <div className="flex flex-wrap gap-1 ml-auto">
-            {paper.categories.slice(1, 4).map((cat) => (
-              <span
-                key={cat}
-                className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded"
-              >
-                {cat}
-              </span>
-            ))}
-            {paper.categories.length > 4 && (
-              <span className="text-xs text-gray-400">
-                +{paper.categories.length - 4}
-              </span>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

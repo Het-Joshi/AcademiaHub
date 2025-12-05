@@ -94,7 +94,7 @@ return (
           disabled={loading}
           // --- ADDED w-full sm:w-auto ---
           // Makes button full-width on mobile, auto-width on desktop
-          className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+          className="btn-primary w-full sm:w-auto px-4 py-2 bg-blue-600 text-black rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
         >
           {loading ? "Refreshing..." : "🔄 Refresh Feed"}
         </button>
