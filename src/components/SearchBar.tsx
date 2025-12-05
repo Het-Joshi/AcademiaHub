@@ -55,7 +55,7 @@ export default function SearchBar({ initialQuery = "" }: Props) {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleSearch();
     }
@@ -80,35 +80,37 @@ export default function SearchBar({ initialQuery = "" }: Props) {
 
   return (
     <div className="mb-8">
-      <div className="bg-white p-4 rounded-lg shadow-md mb-4">
-        {/* Main keyword search */}
-        <div className="flex flex-col sm:flex-row gap-2 mb-3">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search by topic (e.g., network security) or title ..."
-            className="search-input"
-          />
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-          >
-            {showFilters ? "Hide Filters" : "Filters"}
-          </button>
+      {/* Search Container */}
+      <div className="max-w-4xl mx-auto">
+        {/* ... (Keep existing inputs for Query and Author) ... */}
+        
+        {/* Main Search Input */}
+        <div className="relative mb-4">
+             {/* ... (Input code remains the same) ... */}
+             <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Search papers by topic, title, or keywords..."
+                className="w-full pl-14 pr-6 py-5 text-lg bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-2xl shadow-lg focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-100 transition-all duration-200 placeholder:text-gray-400"
+              />
         </div>
 
-        {/* New Author Field (can be shown always or with filters) */}
-        <div className="flex flex-col sm:flex-row gap-2 mb-3">
-          <input
-            type="text"
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search by author (e.g., Devashish Gosain)"
-            className="search-input"
-          />
+        <div className="relative mb-4">
+             {/* ... (Author Input code remains the same) ... */}
+             <input
+                type="text"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Search by author name..."
+                className="w-full pl-14 pr-6 py-5 text-lg bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-2xl shadow-lg focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-100 transition-all duration-200 placeholder:text-gray-400"
+              />
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-4">
           <button
             onClick={handleSearch}
             disabled={loading}

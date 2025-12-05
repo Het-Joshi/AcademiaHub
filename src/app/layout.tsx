@@ -1,74 +1,67 @@
 "use client";
-
-import type { Metadata } from "next";
+import "./globals.css";
 import { Inter } from "next/font/google";
 import { UserPrefsProvider } from "@/context/UserPrefsContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import ZenKnowledgeBackground from "@/components/ZenBackground";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserPrefsProvider } from "@/context/UserPrefsContext";
 import { SessionProvider } from "next-auth/react";
-import UserMenu from "@/components/UserMenu";
-
 const inter = Inter({ subsets: ["latin"] });
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        {/* Providers for session and user preferences */}
         <SessionProvider>
+        <AuthProvider>
           <UserPrefsProvider>
-            <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
-              <div className="max-w-7xl mx-auto px-4">
-                <div className="flex justify-between items-center h-16">
-                  <Link
-                    href="/"
-                    className="text-2xl font-bold text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    AcademiaHub
-                  </Link>
-
-                  <div className="flex items-center space-x-1 md:space-x-2">
-                    <NavLink href="/" label="Search" icon="🔍" />
-                    <NavLink href="/for-you" label="For You" icon="✨" />
-                    <NavLink href="/news" label="News Feed" icon="📰" />
-                    <NavLink href="/saved" label="Saved" icon="⭐" />
-                    <UserMenu />
-                  </div>
-                </div>
-              </div>
-            </nav>
-
-            <main className="max-w-7xl mx-auto px-4 py-8">
+            <Navbar />
+            <main className="max-w-7xl mx-auto px-4 py-8 relative z-10">
+              <ZenKnowledgeBackground />
               {children}
             </main>
-
-            <footer className="bg-gray-50 border-t mt-16">
-              {/* Footer content */}
+            <footer className="bg-stone-100/50 backdrop-blur border-t border-stone-200 mt-16 py-8 text-center text-stone-500">
+              <p>© 2025 AcademiaHub. Research with focus.</p>
             </footer>
           </UserPrefsProvider>
+        </AuthProvider>
         </SessionProvider>
       </body>
     </html>
   );
 }
 
-// Navigation link component with active state
-function NavLink({
-  href,
-  label,
-  icon,
-}: {
-  href: string;
-  label: string;
-  icon: string;
-}) {
+function Navbar() {
+  const { user } = useAuth();
+  return (
+    // Updated: Light background with blur
+    <nav className="bg-[rgb(253,248,235)]/80 backdrop-blur-md shadow-sm border-b border-stone-200 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex justify-between items-center h-16">
+          <Link href="/" className="text-2xl font-bold text-emerald-800 hover:text-emerald-600 transition-colors flex items-center gap-2">
+            <span>🪷</span> AcademiaHub
+          </Link>
+          <div className="flex items-center space-x-1 md:space-x-2 text-stone-600">
+            <NavLink href="/" label="Search" icon="🔍" />
+            <NavLink href="/for-you" label="For You" icon="🎋" />
+            <NavLink href="/news" label="News" icon="📰" />
+            {user ? (
+              <>
+                <NavLink href="/saved" label="Saved" icon="⭐" />
+                <NavLink href="/profile" label={user.username} icon="👤" />
+              </>
+            ) : (
+              <NavLink href="/login" label="Login" icon="🔐" />
+            )}
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+function NavLink({ href, label, icon }: { href: string; label: string; icon: string }) {
   const pathname = usePathname();
   const isActive = pathname === href || (pathname.startsWith(href) && href !== "/");
   return (
@@ -80,8 +73,7 @@ function NavLink({
             : "font-medium text-stone-600 hover:text-emerald-700 hover:bg-emerald-50/50"}
         p-2 md:px-4 md:py-2`}
     >
-      <span>{icon}</span>
-      {/* Hide label on mobile, show on desktop */}
+      <span className="text-lg">{icon}</span>
       <span className="hidden md:inline">{label}</span>
     </Link>
   );

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function SignInPage() {
+// 1. Move the main logic into a separate component (SignInForm)
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -55,7 +56,7 @@ export default function SignInPage() {
             Sign in to AcademiaHub
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/auth/signup"
               className="font-medium text-blue-600 hover:text-blue-500"
@@ -144,3 +145,11 @@ export default function SignInPage() {
   );
 }
 
+// 2. Wrap the form in Suspense in the default export
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>}>
+      <SignInForm />
+    </Suspense>
+  );
+}

@@ -1,7 +1,9 @@
 import type { NextAuthConfig } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { getUserByEmail } from "@/lib/users";
 import NextAuth from "next-auth";
+import dbConnect from "@/lib/db";
+import User from "@/models/User";
+import bcrypt from "bcryptjs";
 
 const authConfig: NextAuthConfig = {
   providers: [
@@ -16,28 +18,30 @@ const authConfig: NextAuthConfig = {
           return null;
         }
 
-        // Make sure email is lowercase so it matches regardless of how user typed it
-        const email = typeof credentials.email === 'string' ? credentials.email : String(credentials.email);
-        const password = typeof credentials.password === 'string' ? credentials.password : String(credentials.password);
-        const normalizedEmail = email.toLowerCase().trim();
+        const email = String(credentials.email).toLowerCase().trim();
+        const password = String(credentials.password);
 
-        // Look up the user in our user storage
-        const user = getUserByEmail(normalizedEmail);
+        await dbConnect();
 
-        if (user && user.password === password) {
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-          };
+        // 1. Find user in MongoDB
+        const user = await User.findOne({ email });
+
+        // 2. If user not found or password doesn't match
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+          return null;
         }
 
-        return null;
+        // 3. Return user object (NextAuth will put this in the JWT)
+        return {
+          id: user._id.toString(),
+          email: user.email,
+          name: user.username, // Mapping MongoDB 'username' to NextAuth 'name'
+        };
       },
     }),
   ],
   pages: {
-    signIn: "/auth/signin",
+    signIn: "/auth/signin", // Your custom signin page
   },
   session: {
     strategy: "jwt",
@@ -49,7 +53,6 @@ const authConfig: NextAuthConfig = {
         token.email = user.email;
         token.name = user.name;
       }
-      // When user updates their profile, update the token too
       if (trigger === "update" && session) {
         if (session.name) token.name = session.name;
         if (session.email) token.email = session.email;
@@ -68,7 +71,5 @@ const authConfig: NextAuthConfig = {
   secret: process.env.NEXTAUTH_SECRET || "your-secret-key-change-in-production",
 };
 
-// Export these so other files can use them
 export const authOptions = authConfig;
 export const { auth, handlers } = NextAuth(authConfig);
-

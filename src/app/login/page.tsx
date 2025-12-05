@@ -41,7 +41,7 @@ export default function Login() {
           value={password} 
           onChange={e => setPassword(e.target.value)} 
         />
-        <button className="w-full bg-blue-600 text-black p-3 rounded-lg font-bold hover:bg-blue-700 transition">
+        <button className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition">
           Log In
         </button>
       </form>
