@@ -6,7 +6,7 @@ import User from "@/models/User";
 
 export async function POST(req: Request) {
   try {
-    const { username, email, password } = await req.json();
+    const { username, email, password, role } = await req.json();
     
     // Validate input
     if (!username || !email || !password) {
@@ -30,11 +30,12 @@ export async function POST(req: Request) {
     // Hash password and create user
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Note: 'name' in your NextAuth session maps to 'username' here
+    // Note: 'name' in NextAuth session maps to 'username' here
     await User.create({
       username,
       email: email.toLowerCase(),
       password: hashedPassword,
+      role: role || "student"
     });
 
     return NextResponse.json({ message: "User created successfully" }, { status: 201 });

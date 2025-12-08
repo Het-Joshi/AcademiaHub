@@ -8,7 +8,8 @@ export default function Register() {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
-    password: ""
+    password: "",
+    role: "student" // Default role
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,6 @@ export default function Register() {
       });
 
       if (res.ok) {
-        // Success: Redirect to login
         router.push("/login?registered=true");
       } else {
         const data = await res.json();
@@ -76,6 +76,19 @@ export default function Register() {
         </div>
 
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">I am a...</label>
+          <select
+            className="w-full p-3 border rounded-lg focus:ring-2 ring-blue-500 outline-none bg-white"
+            value={formData.role}
+            onChange={e => setFormData({...formData, role: e.target.value})}
+          >
+            <option value="student">Student</option>
+            <option value="researcher">Researcher</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
           <input 
             className="w-full p-3 border rounded-lg focus:ring-2 ring-blue-500 outline-none"
@@ -90,7 +103,7 @@ export default function Register() {
 
         <button 
           disabled={loading}
-          className="w-full bg-blue-600 text-black p-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:bg-blue-400"
+          className="w-full bg-blue-600 text-white p-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:bg-blue-400"
         >
           {loading ? "Creating Account..." : "Create Account"}
         </button>

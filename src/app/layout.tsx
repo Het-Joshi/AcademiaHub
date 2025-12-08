@@ -6,14 +6,12 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import ZenKnowledgeBackground from "@/components/ZenBackground";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SessionProvider } from "next-auth/react";
 const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SessionProvider>
         <AuthProvider>
           <UserPrefsProvider>
             <Navbar />
@@ -26,20 +24,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </footer>
           </UserPrefsProvider>
         </AuthProvider>
-        </SessionProvider>
       </body>
     </html>
   );
 }
 
+// Find the Navbar component and update the profile link logic:
 function Navbar() {
   const { user } = useAuth();
   return (
-    // Updated: Light background with blur
     <nav className="bg-[rgb(253,248,235)]/80 backdrop-blur-md shadow-sm border-b border-stone-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          <Link href="/" className="text-2xl font-bold text-emerald-800 hover:text-emerald-600 transition-colors flex items-center gap-2">
+          <Link href="/" className="text-2xl font-bold text-emerald-800 flex items-center gap-2">
             <span>🪷</span> AcademiaHub
           </Link>
           <div className="flex items-center space-x-1 md:space-x-2 text-stone-600">
@@ -49,7 +46,8 @@ function Navbar() {
             {user ? (
               <>
                 <NavLink href="/saved" label="Saved" icon="⭐" />
-                <NavLink href="/profile" label={user.username} icon="👤" />
+                {/* UPDATE THIS LINK: Point to dynamic ID */}
+                <NavLink href={`/profile/${user.username}`} label={user.username} icon="👤" />
               </>
             ) : (
               <NavLink href="/login" label="Login" icon="🔐" />
