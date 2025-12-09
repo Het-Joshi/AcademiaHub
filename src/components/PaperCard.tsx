@@ -12,19 +12,18 @@ export default function PaperCard({ paper }: Props) {
   const { isPaperSaved, toggleSavePaper } = useUserPrefs();
   const saved = isPaperSaved(paper.id);
 
-  // Extract ID clean logic...
+  // Clean ID logic...
   const getArxivId = (fullId: string) => fullId.replace(/^(https?:\/\/)?(www\.)?arxiv\.org\/abs\//, "").split('v')[0];
   const cleanId = getArxivId(paper.id);
 
   return (
     <div className="glass-card mb-4 group border-l-4 border-l-transparent hover:border-l-emerald-400">
       <div className="flex justify-between items-start mb-3">
-        {/* Title: Dark Emerald/Black */}
         <h3 className="text-xl font-bold text-stone-800 leading-tight flex-1 pr-4 group-hover:text-emerald-700 transition-colors">
           {paper.title}
         </h3>
         <button
-          onClick={() => toggleSavePaper(paper.id)}
+          onClick={() => toggleSavePaper(paper.id, paper.title)} // Pass Title Here
           className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider transition-all border ${
             saved
               ? "bg-amber-100 text-amber-700 border-amber-300"
@@ -52,7 +51,6 @@ export default function PaperCard({ paper }: Props) {
       </div>
 
       <div className="mb-5">
-        {/* Summary: Dark Gray */}
         <p className={`text-sm text-stone-600 leading-relaxed ${expanded ? "" : "line-clamp-3"}`}>
           {paper.summary}
         </p>

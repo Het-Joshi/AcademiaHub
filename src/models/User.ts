@@ -12,6 +12,8 @@ const UserSchema = new mongoose.Schema({
   // Social Relations (User2User)
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  // Notification Tracking
+  lastSeenActivity: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 export default mongoose.models.User || mongoose.model("User", UserSchema);

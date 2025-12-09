@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const LikeSchema = new mongoose.Schema({
   paperId: { type: String, required: true }, // The ArXiv ID
+  paperTitle: { type: String }, // Added for activity feed
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 }, { timestamps: true });
 

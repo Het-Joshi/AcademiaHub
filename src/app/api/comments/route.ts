@@ -1,4 +1,4 @@
-// src/app/api/comments/route.ts
+/* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
@@ -15,9 +15,10 @@ export async function GET(req: Request) {
 
   await dbConnect();
 
-  let query = {};
-  if (paperId) query = { paperId };
-  else if (username) query = { username };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = {};
+  if (paperId) query.paperId = paperId;
+  else if (username) query.username = username;
   else return NextResponse.json([]);
 
   const comments = await Comment.find(query).sort({ createdAt: -1 });
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
 
   try {
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "default_secret");
-    const { paperId, content } = await req.json();
+    const { paperId, paperTitle, content } = await req.json(); // Accept title
 
     if (!content.trim()) return NextResponse.json({ error: "Comment cannot be empty" }, { status: 400 });
 
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
     
     const comment = await Comment.create({
       paperId,
+      paperTitle,
       content,
       user: decoded.userId,
       username: decoded.username, 
@@ -56,7 +58,6 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const cookieHeader = (await headers()).get("cookie");
   const token = cookieHeader?.split("auth_token=")[1]?.split(";")[0];
-
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
@@ -71,7 +72,6 @@ export async function DELETE(req: Request) {
     const comment = await Comment.findById(commentId);
     if (!comment) return NextResponse.json({ error: "Comment not found" }, { status: 404 });
 
-    // Check permissions: Admin or Comment Owner
     const user = await User.findById(decoded.userId);
     const isAdmin = user?.role === 'admin';
     const isOwner = comment.user.toString() === decoded.userId;

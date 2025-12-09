@@ -14,10 +14,8 @@ export async function GET(req: Request) {
 
   await dbConnect();
 
-  // 1. Get Total Count
   const count = await Like.countDocuments({ paperId });
 
-  // 2. Check if current user liked (if logged in)
   let hasLiked = false;
   const cookieHeader = (await headers()).get("cookie");
   const token = cookieHeader?.split("auth_token=")[1]?.split(";")[0];
@@ -28,7 +26,7 @@ export async function GET(req: Request) {
       const userLike = await Like.findOne({ paperId, userId: decoded.userId });
       hasLiked = !!userLike;
     } catch (e) {
-      // Token invalid, treat as guest
+      // Token invalid
     }
   }
 
@@ -44,19 +42,17 @@ export async function POST(req: Request) {
 
   try {
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "default_secret");
-    const { paperId } = await req.json();
+    const { paperId, paperTitle } = await req.json(); // Accept title
 
     await dbConnect();
 
     const existingLike = await Like.findOne({ paperId, userId: decoded.userId });
 
     if (existingLike) {
-      // Unlike
       await Like.findByIdAndDelete(existingLike._id);
       return NextResponse.json({ action: "unliked" });
     } else {
-      // Like
-      await Like.create({ paperId, userId: decoded.userId });
+      await Like.create({ paperId, paperTitle, userId: decoded.userId });
       return NextResponse.json({ action: "liked" });
     }
   } catch (err) {

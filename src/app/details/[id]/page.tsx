@@ -1,10 +1,10 @@
-// src/app/details/[id]/page.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getPapersByIds } from "@/lib/arxiv";
 import { ArxivPaper } from "@/types";
 import { useAuth } from "@/context/AuthContext";
+import Link from "next/link"; // Added Link
 
 export default function PaperDetails() {
   const { id } = useParams();
@@ -12,18 +12,15 @@ export default function PaperDetails() {
   
   const [paper, setPaper] = useState<ArxivPaper | null>(null);
   
-  // Comment State
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  // Like State
   const [likeCount, setLikeCount] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [liking, setLiking] = useState(false);
 
-  // 1. Fetch Paper, Comments, and Likes
   useEffect(() => {
     if (id) {
       getPapersByIds([id as string]).then((papers) => {
@@ -59,7 +56,7 @@ export default function PaperDetails() {
         await fetch("/api/likes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paperId: id })
+            body: JSON.stringify({ paperId: id, paperTitle: paper?.title }) // Pass Title
         });
         fetchLikes();
     } catch (err) {
@@ -79,7 +76,7 @@ export default function PaperDetails() {
         const res = await fetch("/api/comments", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paperId: id, content: newComment }),
+            body: JSON.stringify({ paperId: id, content: newComment, paperTitle: paper?.title }), // Pass Title
         });
         
         if (res.ok) {
@@ -95,13 +92,8 @@ export default function PaperDetails() {
 
   const handleDeleteComment = async (commentId: string) => {
       if(!confirm("Delete this comment?")) return;
-      
       const res = await fetch(`/api/comments?id=${commentId}`, { method: "DELETE" });
-      if (res.ok) {
-          setComments(prev => prev.filter(c => c._id !== commentId));
-      } else {
-          alert("Failed to delete.");
-      }
+      if (res.ok) setComments(prev => prev.filter(c => c._id !== commentId));
   };
 
   if (!paper) return <div className="flex justify-center items-center h-[50vh]"><div className="rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div></div>;
@@ -138,11 +130,15 @@ export default function PaperDetails() {
           {comments.length === 0 ? <p className="text-center text-gray-400 italic py-4">No comments yet.</p> : comments.map((c) => (
              <div key={c._id} className="bg-white/40 p-4 rounded-xl border border-white/40 relative group">
                 <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2"><span className="font-bold text-emerald-700">@{c.username}</span></div>
+                    {/* MODIFIED: Clickable Username */}
+                    <div className="flex items-center gap-2">
+                        <Link href={`/profile/${c.username}`} className="font-bold text-emerald-700 hover:underline">
+                            @{c.username}
+                        </Link>
+                    </div>
                     <span className="text-xs text-stone-500 font-mono">{new Date(c.createdAt).toLocaleDateString()}</span>
                 </div>
                 <p className="text-stone-700 leading-relaxed text-sm">{c.content}</p>
-                {/* Delete Button for Admin or Owner */}
                 {user && (user.role === 'admin' || user.username === c.username) && (
                     <button 
                         onClick={() => handleDeleteComment(c._id)}

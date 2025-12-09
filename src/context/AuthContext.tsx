@@ -15,10 +15,9 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  // UPDATED: Removed 'token: string'
   login: (userData: User) => void;
   logout: () => void;
-  toggleSavePaper: (paperId: string) => Promise<void>;
+  toggleSavePaper: (paperId: string, paperTitle?: string) => Promise<void>; // Added title
   updateInterests: (interests: string[]) => Promise<void>;
 }
 
@@ -29,7 +28,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Load session on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -47,7 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  // UPDATED: Removed 'token' parameter
   const login = (userData: User) => {
     setUser(userData);
     router.push("/for-you");
@@ -59,14 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login");
   };
 
-  // Sync Save Paper to DB
-  const toggleSavePaper = async (paperId: string) => {
+  const toggleSavePaper = async (paperId: string, paperTitle?: string) => {
     if (!user) {
         alert("Please login to save papers!"); 
         return; 
     }
     
-    // Optimistic UI Update
     const isSaved = user.savedPapers.includes(paperId);
     const newSaved = isSaved 
         ? user.savedPapers.filter(id => id !== paperId)
@@ -74,18 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     setUser({ ...user, savedPapers: newSaved });
 
-    // API Call
     await fetch("/api/user/bookmarks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paperId, action: isSaved ? "remove" : "add" })
+      body: JSON.stringify({ paperId, paperTitle, action: isSaved ? "remove" : "add" })
     });
   };
 
   const updateInterests = async (interests: string[]) => {
       if(!user) return;
       setUser({...user, interests});
-      // Add API call here similarly
   };
 
   return (

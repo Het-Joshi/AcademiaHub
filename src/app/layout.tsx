@@ -6,6 +6,8 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import ZenKnowledgeBackground from "@/components/ZenBackground";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import NotificationBell from "@/components/NotificationBell"; // Import Bell
+
 const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +31,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 }
 
-// Find the Navbar component and update the profile link logic:
 function Navbar() {
   const { user } = useAuth();
   return (
@@ -46,8 +47,10 @@ function Navbar() {
             {user ? (
               <>
                 <NavLink href="/saved" label="Saved" icon="⭐" />
-                {/* UPDATE THIS LINK: Point to dynamic ID */}
                 <NavLink href={`/profile/${user.username}`} label={user.username} icon="👤" />
+                <div className="ml-2 pl-2 border-l border-stone-300">
+                   <NotificationBell username={user.username} />
+                </div>
               </>
             ) : (
               <NavLink href="/login" label="Login" icon="🔐" />
@@ -61,7 +64,8 @@ function Navbar() {
 
 function NavLink({ href, label, icon }: { href: string; label: string; icon: string }) {
   const pathname = usePathname();
-  const isActive = pathname === href || (pathname.startsWith(href) && href !== "/");
+  // Simple check: active if strict match or starts with href (except root)
+  const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
   return (
     <Link
       href={href}
