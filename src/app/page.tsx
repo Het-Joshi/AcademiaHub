@@ -20,11 +20,6 @@ export default function Home() {
           <button className="btn-primary mb-4">
             <Link href="https://github.com/Het-Joshi/AcademiaHub">Code (Contains front and back end)</Link>
           </button>
-          <ul className="text-2lg">
-            A project by students from <span className="font-bold md-2"> Section 4 </span>
-          <li className="mt-3">Het Rutul Joshi</li>
-          <li>Zahra Mohammadi</li>
-          </ul>
         </div>
 
     </div>
